@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AEROSPACE AI // Space Debris Tracking & Collision Risk Prediction (PS-07)</title>
+  
+  <link rel="stylesheet" href="css/styles.css">
+  
+  <!-- Three.js & OrbitControls via CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+  <!-- 3D WebGL Visualization Canvas -->
+  <div id="canvas-container"></div>
+
+  <!-- HUD Telemetry & Mission Control Overlay -->
+  <div class="hud-layer">
+    
+    <!-- Floating Edge Sidebar Handles -->
+    <button id="handle-left-pane" class="sidebar-handle sidebar-handle-left" title="Toggle Surveillance Catalog (Key: [)">◀</button>
+    <button id="handle-right-pane" class="sidebar-handle sidebar-handle-right" title="Toggle Telemetry Panel (Key: ])">▶</button>
+
+    <!-- Top Navigation & Global Clocks Bar -->
+    <header class="top-nav interactive-panel">
+      <div class="logo-group">
+        <div class="radar-icon" title="Double-click to Inspect Source Code"></div>
+        <div>
+          <div class="app-title">ASTRO-GUARD // AI ORBITAL DEFENSE</div>
+          <div style="font-size: 9px; color: #94a3b8; letter-spacing: 0.5px;">BINARY HACKS 4.0 · PS-07 · AEROSPACE & AI</div>
+        </div>
+        <span class="app-badge">SGP4 PROPAGATOR ONLINE</span>
+      </div>
+
+      <!-- Mission Actions & Quick Switchers -->
+      <div class="actions-group" style="display: flex; gap: 8px; align-items: center;">
+        <button id="btn-toggle-left-pane" class="btn-dock" title="Toggle Surveillance Catalog (Key: [)">◧ CATALOG</button>
+        <button id="btn-toggle-right-pane" class="btn-dock" title="Toggle Telemetry Panel (Key: ])">◨ TELEMETRY</button>
+        <button id="btn-theme-toggle" class="btn-dock" title="Switch Light/Dark Mode">☀️ LIGHT MODE</button>
+        <button id="btn-mission-chandrayaan" class="btn-dock" style="border-color: #f59e0b; color: #f59e0b; background: rgba(245, 158, 11, 0.15);" title="Simulate Chandrayaan-4 Lunar Landing">🚀 CHANDRAYAAN-4</button>
+        <button id="btn-toggle-ai-copilot" class="btn-dock" style="border-color: var(--color-cyan); color: var(--color-cyan); background: rgba(0, 240, 255, 0.12);" title="AI Aerospace Voice & Text Copilot">💬 AI COPILOT</button>
+      </div>
+
+      <div class="clocks-group">
+        <div class="clock-item">
+          <span class="clock-label">WARP SPEED</span>
+          <span class="clock-value" id="sim-speed-label">20x (ACTIVE)</span>
+        </div>
+        <div class="clock-item">
+          <span class="clock-label">UNIVERSAL TIME</span>
+          <span class="clock-value" id="utc-clock">2026-09-23 00:00:00 UTC</span>
+        </div>
+        <div class="clock-item">
+          <span class="clock-label">INDIAN STANDARD TIME</span>
+          <span class="clock-value" id="ist-clock">2026-09-23 05:30:00 IST</span>
+        </div>
+        <div class="clock-item">
+          <span class="clock-label">ASTRONOMICAL EPOCH</span>
+          <span class="clock-value" id="jd-clock">JD 2460395.2819</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Critical Conjunction Warning Banner -->
+    <div id="critical-alert-banner" class="alert-banner interactive-panel hidden">
+      <div id="alert-banner-text">
+        ⚠️ <strong>CRITICAL CONJUNCTION DETECTED:</strong> Cartosat-2C vs COSMOS 2251 DEB #33214 | Miss: 380m | Risk: 94.2%
+      </div>
+      <div class="alert-actions">
+        <button id="btn-execute-avoidance" class="btn-alert">EXECUTE AI AVOIDANCE</button>
+        <button id="btn-alert-dismiss" class="btn-alert btn-dismiss">DISMISS</button>
+      </div>
+    </div>
+
+    <!-- Atmospheric Re-entry Critical Descent Alert Banner -->
+    <div id="reentry-alert-banner" class="alert-banner interactive-panel hidden" style="background: linear-gradient(90deg, #dc2626, #b91c1c);">
+      <div id="reentry-banner-text">
+        🔥 <strong>ATMOSPHERIC RE-ENTRY DETECTED:</strong> Spacecraft descending into lower thermosphere!
+      </div>
+    </div>
+
+    <!-- Main Cockpit Workspace -->
+    <main class="cockpit-body">
+      
+      <!-- LEFT PANEL: Orbital Surveillance & Catalog -->
+      <section class="left-panel glass-panel interactive-panel">
+        <div class="panel-header">
+          <span>ORBITAL SURVEILLANCE</span>
+          <span style="font-size: 10px; color: var(--color-cyan);">LEO / MEO / GEO</span>
+        </div>
+
+        <!-- Global Stats Matrix -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">TOTAL TRACKED</div>
+            <div class="stat-val" id="stat-total">1,250</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">ACTIVE SATELLITES</div>
+            <div class="stat-val text-cyan" id="stat-payloads">188</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">SPENT BOOSTERS</div>
+            <div class="stat-val" style="color: var(--color-amber);" id="stat-rockets">246</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">DEBRIS FRAGMENTS</div>
+            <div class="stat-val text-red" id="stat-debris">816</div>
+          </div>
+        </div>
+
+        <!-- Kessler Syndrome Cascade Gauge -->
+        <div class="kessler-card">
+          <div class="kessler-header">
+            <span style="color: #cbd5e1; font-weight: 600;">KESSLER CASCADE INDEX</span>
+            <span id="kessler-index-val" style="color: var(--color-amber); font-weight: 700;">64.2%</span>
+          </div>
+          <div class="kessler-bar-bg">
+            <div id="kessler-bar" class="kessler-bar-fill"></div>
+          </div>
+          <div id="kessler-status" class="kessler-status" style="color: var(--color-amber);">
+            ELEVATED COLLISION CASCADE RISK
+          </div>
+        </div>
+
+        <!-- View Switcher Tabs -->
+        <div class="panel-tabs-bar">
+          <button id="tab-catalog" class="panel-tab-btn active">🛰️ SSN CATALOG</button>
+          <button id="tab-timetable" class="panel-tab-btn">⏱️ COLLISION TIMETABLE <span id="timetable-badge-count" class="tab-badge">28</span></button>
+        </div>
+
+        <!-- VIEW 1: SSN Catalog View -->
+        <div id="view-catalog" class="tab-view-content">
+          <!-- Search & Filter Options -->
+          <div class="search-box">
+            <input type="text" id="search-input" class="search-input" placeholder="Search by Name or NORAD ID (e.g. Cartosat, ISS)...">
+          </div>
+
+          <div class="filter-chips">
+            <button class="filter-chip active" data-type="ALL">ALL</button>
+            <button class="filter-chip" data-type="PAYLOAD">PAYLOADS</button>
+            <button class="filter-chip" data-type="ROCKET_BODY">ROCKET BODIES</button>
+            <button class="filter-chip" data-type="DEBRIS">DEBRIS</button>
+          </div>
+
+          <!-- Scrollable Objects List -->
+          <div id="objects-list" class="objects-roster">
+            <!-- Populated dynamically via ui-controller.js -->
+          </div>
+        </div>
+
+        <!-- VIEW 2: Multi-Horizon Collision Timetable View -->
+        <div id="view-timetable" class="tab-view-content hidden" style="display: none;">
+          <div class="timetable-filter-bar">
+            <div class="horizon-chips-scroll">
+              <button class="horizon-chip active" data-horizon="ALL">ALL TIMELINES</button>
+              <button class="horizon-chip" data-horizon="1h">1 HOUR</button>
+              <button class="horizon-chip" data-horizon="2h">2 HOURS</button>
+              <button class="horizon-chip" data-horizon="4h">4 HOURS</button>
+              <button class="horizon-chip" data-horizon="6h">6 HOURS</button>
+              <button class="horizon-chip" data-horizon="12h">12 HOURS</button>
+              <button class="horizon-chip" data-horizon="24h">24 HOURS</button>
+              <button class="horizon-chip" data-horizon="2d">2 DAYS</button>
+              <button class="horizon-chip" data-horizon="4d">4 DAYS</button>
+              <button class="horizon-chip" data-horizon="10d">10 DAYS</button>
+              <button class="horizon-chip" data-horizon="1m">1 MONTH</button>
+              <button class="horizon-chip" data-horizon="3m">3 MONTHS</button>
+              <button class="horizon-chip" data-horizon="6m">6 MONTHS</button>
+              <button class="horizon-chip" data-horizon="9m">9 MONTHS</button>
+              <button class="horizon-chip" data-horizon="1y">1 YEAR</button>
+            </div>
+          </div>
+
+          <!-- Collision Timetable Roster -->
+          <div id="collision-timetable-list" class="timetable-roster">
+            <!-- Dynamically populated via ui-controller.js -->
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT PANEL: Target Telemetry & AI Conjunction Assessment -->
+      <section class="right-panel glass-panel interactive-panel" id="telemetry-panel">
+        
+        <!-- Target Info Header -->
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span class="target-badge" id="target-type-badge">ACTIVE SATELLITE</span>
+            <span id="target-agency" style="font-size: 10px; color: #94a3b8;">ISRO</span>
+          </div>
+          <h2 class="target-title" id="target-name">Cartosat-2C</h2>
+          <div class="target-sub" id="target-norad">NORAD ID: 41607 | India</div>
+        </div>
+
+        <!-- Spacecraft Quick Actions -->
+        <div style="display: flex; gap: 8px; margin: 8px 0 10px 0;">
+          <button id="btn-telemetry-collision" class="btn-dock" style="flex: 1; border-color: #ef4444; color: #ef4444; background: rgba(239, 68, 68, 0.15); font-weight: 700; font-size: 11px; padding: 7px 10px; border-radius: 4px; cursor: pointer; transition: all 0.2s ease;">
+            💥 SIMULATE COLLISION
+          </button>
+          <button id="btn-telemetry-track" class="btn-dock" style="flex: 1; border-color: var(--color-cyan); color: var(--color-cyan); background: rgba(0, 240, 255, 0.1); font-weight: 700; font-size: 11px; padding: 7px 10px; border-radius: 4px; cursor: pointer; transition: all 0.2s ease;">
+            🎯 TRACK CAM
+          </button>
+        </div>
+
+        <!-- AI Conjunction Warning Card (Dynamic) -->
+        <div id="conjunction-section" class="conjunction-card hidden">
+          <div class="conjunction-header">
+            <span style="color: var(--color-red); font-weight: 700; font-size: 11px;">⚠️ CONJUNCTION DETECTED</span>
+            <span id="threat-risk-badge" class="target-badge" style="background: var(--color-red); color: #000; font-weight: 700;">CRITICAL</span>
+          </div>
+          <div style="font-size: 11px; color: #cbd5e1;">
+            Intersecting Object: <strong id="threat-obj-name" class="text-red">COSMOS 2251 DEB #33214</strong>
+          </div>
+          <div class="telemetry-row">
+            <span class="label">Miss Distance:</span>
+            <span class="val text-red font-bold" id="threat-miss-distance">380 meters</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="label">Relative Velocity (&Delta;v):</span>
+            <span class="val" id="threat-rel-velocity">10.42 km/s</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="label">Collision Probability (Pc):</span>
+            <span class="val text-red font-bold" id="threat-probability">94.20%</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="label">Time to Closest Approach:</span>
+            <span class="val highlight font-bold" id="threat-tca">T-18s</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="label">Kinetic Impact Energy:</span>
+            <span class="val" id="threat-impact-energy">786.5 MJ (~188 kg TNT)</span>
+          </div>
+          
+          <div style="display: flex; gap: 8px; margin-top: 4px;">
+            <button class="btn-maneuver" style="flex: 1;" onclick="window.SpaceApp.ui.openAvoidanceModal()">
+              AI AVOIDANCE BURN
+            </button>
+            <button id="btn-trigger-impact" class="btn-maneuver" style="flex: 1; background: linear-gradient(90deg, #b91c1c, #991b1b);">
+              💥 SIMULATE IMPACT
+            </button>
+          </div>
+        </div>
+
+        <!-- Live Geodetic Coordinates -->
+        <div class="telemetry-section">
+          <div class="panel-header">GEODETIC POSITION</div>
+          <div class="telemetry-row">
+            <span class="label">Latitude (&phi;):</span>
+            <span class="val highlight" id="val-lat">18.42° N</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="label">Longitude (&lambda;):</span>
+            <span class="val highlight" id="val-lon">73.85° E</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="label">Orbital Altitude:</span>
+            <span class="val highlight" id="val-alt">505.4 km</span>
+          </div>
+        </div>
+
+        <!-- NEAREST HAZARDS PROXIMITY RADAR -->
+        <div class="telemetry-section" id="proximity-radar-section">
+          <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>NEAREST THREATS PROXIMITY RADAR</span>
+            <span class="radar-dot-live" title="Continuous Real-Time Spatial Radar"></span>
+          </div>
+          <div id="proximity-radar-list" class="proximity-radar-grid">
+            <!-- Dynamically populated via ui-controller.js -->
+          </div>
+        </div>
+
+        <!-- Live Velocity & Direction Metrics -->
+        <div class="telemetry-section">
+          <div class="panel-header">TRAJECTORY & VELOCITY METRICS</div>
+          <div class="telemetry-row">
+            <span class="label">Orbital Velocity:</span>
+            <span class="val highlight" id="val-speed-kms">7.612 km/s</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="label">Ground Speed:</span>
+            <span class="val" id="val-speed-kmh">27,403 km/h</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="label">Aerodynamic Mach:</span>
+            <span class="val" id="val-speed-mach">Mach 22.2</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="label">Speed of Light (c):</span>
+            <span class="val" id="val-speed-light">0.0025% c</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="label">Flight Path Angle (&gamma;):</span>
+            <span class="val" id="val-flight-path">+0.02°</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="label">3D Heading Vector:</span>
+            <span class="val highlight" id="val-direction" style="font-size: 10px;">[0.82, 0.54, -0.18]</span>
+          </div>
+        </div>
+
+        <!-- Cosmic Sound Profiles Soundboard -->
+        <div class="telemetry-section">
+          <div class="panel-header">COSMIC AUDIO PROFILES</div>
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; padding: 4px 0;">
+            <button class="btn-dock" onclick="window.SpaceApp && window.SpaceApp.ui && window.audio.playSatelliteTransmission()" style="font-size: 9px; padding: 4px;">📡 SATELLITE CHIRP</button>
+            <button class="btn-dock" onclick="window.SpaceApp && window.SpaceApp.ui && window.audio.playPulsarBeep()" style="font-size: 9px; padding: 4px;">⚡ PULSAR BURST</button>
+            <button class="btn-dock" onclick="window.SpaceApp && window.SpaceApp.ui && window.audio.playSpaceStationAmbience()" style="font-size: 9px; padding: 4px;">🛰️ STATION COMM</button>
+            <button class="btn-dock" onclick="window.SpaceApp && window.SpaceApp.ui && window.audio.playCosmicWind()" style="font-size: 9px; padding: 4px;">🌌 SOLAR WIND</button>
+          </div>
+        </div>
+
+        <!-- Keplerian Elements -->
+        <div class="telemetry-section">
+          <div class="panel-header">ORBITAL PARAMETERS</div>
+          <div class="telemetry-row">
+            <span class="label">Inclination (i):</span>
+            <span class="val" id="val-inc">97.45°</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="label">Eccentricity (e):</span>
+            <span class="val" id="val-ecc">0.00115</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="label">Orbital Period:</span>
+            <span class="val" id="val-period">94.7 min</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="label">Apogee Alt:</span>
+            <span class="val" id="val-apogee">513.2 km</span>
+          </div>
+          <div class="telemetry-row">
+            <span class="label">Perigee Alt:</span>
+            <span class="val" id="val-perigee">497.6 km</span>
+          </div>
+        </div>
+
+        <!-- Mission Dossier -->
+        <div class="telemetry-section">
+          <div class="panel-header">MISSION DOSSIER</div>
+          <div id="target-description" style="font-size: 10px; color: #94a3b8; line-height: 1.5; padding: 4px;">
+            High-resolution panchromatic & multispectral imaging satellite.
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Bottom Mission Control Navigation Dock -->
+    <footer class="bottom-dock interactive-panel">
+      <!-- Time Warp Controls (Default 20x for visible continuous movement) -->
+      <div class="dock-group">
+        <span class="dock-label">ORBIT SPEED:</span>
+        <button class="btn-dock btn-time-warp" data-warp="0">PAUSE</button>
+        <button class="btn-dock btn-time-warp" data-warp="1">1x REAL</button>
+        <button class="btn-dock btn-time-warp active" data-warp="20">20x ORBIT</button>
+        <button class="btn-dock btn-time-warp" data-warp="100">100x</button>
+        <button class="btn-dock btn-time-warp" data-warp="500">500x</button>
+      </div>
+
+      <!-- Camera Presets -->
+      <div class="dock-group">
+        <span class="dock-label">CAMERA:</span>
+        <button class="btn-dock btn-cam-view active" data-view="default">DEFAULT</button>
+        <button class="btn-dock btn-cam-view" data-view="follow">LOCK TARGET</button>
+        <button class="btn-dock btn-cam-view" data-view="moon">🌙 MOON</button>
+        <button class="btn-dock btn-cam-view" data-view="north_pole">NORTH POLE</button>
+        <button class="btn-dock btn-cam-view" data-view="equator">EQUATOR</button>
+        <button class="btn-dock btn-cam-view" data-view="geo">GEO BELT</button>
+      </div>
+
+      <!-- Earth Auto-Rotation & Speed Controls -->
+      <div class="dock-group">
+        <button id="btn-earth-spin-toggle" class="btn-dock active">🌍 EARTH SPIN: ON</button>
+        <button id="btn-earth-speed-cycle" class="btn-dock">🌐 SPEED: 0.5x (CALM)</button>
+      </div>
+
+      <!-- Visibility & Vector Layers -->
+      <div class="dock-group">
+        <button id="btn-toggle-vectors" class="btn-dock active">🧭 VECTORS: ON</button>
+        <button id="btn-toggle-objects" class="btn-dock active">🛰️ OBJECTS: ON</button>
+        <button id="btn-sound-toggle" class="btn-dock">🔊 AUDIO: ON</button>
+        <button id="btn-dock-timetable" class="btn-dock" style="border-color: #f59e0b; color: #f59e0b; background: rgba(245, 158, 11, 0.15); font-weight: 700;">⏱️ COLLISION TIMETABLE</button>
+        <button id="btn-dock-simulate-collision" class="btn-dock" style="border-color: #ef4444; color: #ef4444; background: rgba(239, 68, 68, 0.15); font-weight: 700;">💥 SIMULATE COLLISION</button>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- In-App Interactive Source Code Viewer Modal -->
+  <div id="source-code-modal" class="modal-overlay hidden">
+    <div class="modal-content code-modal-content">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span class="modal-title">💻 PROJECT SOURCE CODE VIEWER</span>
+          <span id="source-current-file" class="target-badge" style="color: var(--color-cyan); border-color: var(--color-cyan);">index.html</span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button id="btn-copy-code" class="btn-dock" style="font-size: 11px;">📋 COPY CODE</button>
+          <button id="btn-close-source-modal" class="modal-close">&times;</button>
+        </div>
+      </div>
+
+      <!-- File Navigation Tabs -->
+      <div id="source-file-tabs" class="source-tabs-bar"></div>
+
+      <!-- Syntax-Formatted Code Block -->
+      <div class="code-editor-container">
+        <pre><code id="source-code-content">// Loading source code...</code></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Autonomous Avoidance Maneuver Planning Modal -->
+  <div id="maneuver-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">AI AUTONOMOUS EVASIVE MANEUVER PLANNER</div>
+        <button id="btn-close-modal" class="modal-close">&times;</button>
+      </div>
+
+      <div id="maneuver-details" class="maneuver-grid"></div>
+
+      <div class="modal-actions">
+        <button id="btn-confirm-burn" class="btn-confirm">CONFIRM & COMMENCE THRUSTER BURN</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hypervelocity Collision Event Dossier Modal -->
+  <div id="explosion-modal" class="modal-overlay hidden">
+    <div class="modal-content" style="border-color: var(--color-red); box-shadow: 0 0 35px var(--color-red-glow);">
+      <div class="modal-header">
+        <div class="modal-title" style="color: var(--color-red);">💥 HYPERVELOCITY IMPACT REPORT</div>
+        <button id="btn-close-explosion-modal" class="modal-close">&times;</button>
+      </div>
+
+      <div id="explosion-details" class="maneuver-grid"></div>
+
+      <div class="modal-actions">
+        <button onclick="document.getElementById('explosion-modal').classList.add('hidden')" class="btn-confirm" style="background: var(--color-red); color: #fff;">
+          ACKNOWLEDGE IMPACT DATA
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Cursor Right-Click Context Menu -->
+  <div id="cursor-context-menu" class="context-menu glass-panel hidden">
+    <div class="menu-item" id="ctx-view-source">
+      <span class="menu-icon">💻</span>
+      <span>Inspect Project Source Code</span>
+    </div>
+    <div class="menu-item" id="ctx-focus-moon">
+      <span class="menu-icon">🌙</span>
+      <span>Focus on Moon</span>
+    </div>
+    <div class="menu-item" id="ctx-reset-cam">
+      <span class="menu-icon">🌍</span>
+      <span>Reset Earth Orbit Camera</span>
+    </div>
+    <div class="menu-item" id="ctx-trigger-collision">
+      <span class="menu-icon">💥</span>
+      <span>Simulate Collision Event</span>
+    </div>
+  </div>
+
+  <!-- Non-Blocking Tactical Collision Alert Toast ("aleart ka pop-up achanak se show kr de") -->
+  <div id="collision-alert-toast" class="tactical-alert-toast hidden">
+    <div class="toast-header">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 14px;">⚠️</span>
+        <span class="toast-title" id="toast-title">HYPERVELOCITY IMPACT DETECTED!</span>
+      </div>
+      <button id="btn-close-toast" class="toast-close">&times;</button>
+    </div>
+    <div class="toast-body" id="toast-body">
+      <!-- Injected dynamically on collision -->
+    </div>
+    <div class="toast-actions">
+      <button id="btn-toast-view-dossier" class="btn-dock" style="flex: 1; border-color: var(--color-cyan); color: var(--color-cyan); font-size: 10px;">📋 FULL DOSSIER</button>
+      <button id="btn-toast-dismiss" class="btn-dock" style="border-color: #ef4444; color: #ef4444; font-size: 10px;">DISMISS</button>
+    </div>
+  </div>
+
+  <!-- ISRO Chandrayaan-4 Lunar Landing Mission HUD -->
+  <div id="chandrayaan-hud" class="chandrayaan-mission-hud hidden">
+    <div class="mission-hud-header">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 16px;">🚀</span>
+        <div>
+          <div style="font-size: 12px; font-weight: 800; color: #f59e0b; letter-spacing: 1px;">ISRO CHANDRAYAAN-4 // LUNAR SAMPLE RETURN & LANDING</div>
+          <div id="mission-hud-status" style="font-size: 10px; color: #94a3b8;">S200 Twin Solid Boosters Firing | Sriharikota Launch Site</div>
+        </div>
+      </div>
+      <button id="btn-abort-chandrayaan" class="btn-dock" style="border-color: #ef4444; color: #ef4444; font-size: 10px; padding: 4px 8px;">ABORT MISSION</button>
+    </div>
+    <div class="mission-stage-steps" id="mission-stage-badges">
+      <span class="mission-step-badge active" data-stage="0">1. LVM3 LIFTOFF</span>
+      <span class="mission-step-badge" data-stage="1">2. S200 JETTISON</span>
+      <span class="mission-step-badge" data-stage="2">3. PARKING ORBIT</span>
+      <span class="mission-step-badge" data-stage="3">4. TLI BURN</span>
+      <span class="mission-step-badge" data-stage="4">5. CISLUNAR CRUISE</span>
+      <span class="mission-step-badge" data-stage="5">6. LOI BRAKING</span>
+      <span class="mission-step-badge" data-stage="6">7. POWERED DESCENT</span>
+      <span class="mission-step-badge" data-stage="7">8. SOUTH POLE LANDING</span>
+    </div>
+    <div class="mission-telemetry-grid">
+      <div class="metric-pill"><span class="lbl">Altitude:</span><span class="val text-cyan font-bold" id="mission-tele-alt">0.0 km</span></div>
+      <div class="metric-pill"><span class="lbl">Velocity:</span><span class="val text-amber font-bold" id="mission-tele-vel">1.2 km/s</span></div>
+      <div class="metric-pill"><span class="lbl">Distance to Moon:</span><span class="val text-cyan font-bold" id="mission-tele-dist">384,400 km</span></div>
+      <div class="metric-pill"><span class="lbl">Propellant:</span><span class="val text-emerald font-bold" id="mission-tele-fuel">100%</span></div>
+    </div>
+  </div>
+
+  <!-- AI Aerospace Voice & Text Mission Copilot Widget -->
+  <div id="ai-copilot-container" class="ai-copilot-container hidden">
+    <div class="ai-copilot-header">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 14px;">💬</span>
+        <span style="font-size: 11.5px; font-weight: 700; color: var(--color-cyan); letter-spacing: 0.8px;">ASTRO-COPILOT // AI MISSION ASSISTANT</span>
+      </div>
+      <div style="display: flex; gap: 6px; align-items: center;">
+        <button id="btn-minimize-ai" class="toast-close" title="Minimize/Expand" style="font-size: 14px;">—</button>
+        <button id="btn-close-ai" class="toast-close" title="Close Copilot">&times;</button>
+      </div>
+    </div>
+    <div class="ai-copilot-messages" id="ai-copilot-messages"></div>
+    <div class="ai-copilot-input-bar">
+      <input type="text" id="ai-copilot-input" class="ai-input" placeholder="Ask in Hindi, Hinglish, or English (or click Mic)...">
+      <button id="btn-ai-mic" class="btn-mic" title="Speak Voice Command">🎙️</button>
+      <button id="btn-ai-send" class="btn-dock" style="font-size: 11px; padding: 4px 10px;">SEND</button>
+    </div>
+  </div>
+
+  <!-- Master JavaScript Entrypoint -->
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
